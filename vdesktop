@@ -317,4 +317,4 @@ echo "The machine has exited, but you can still access its filesystem. Press Ctr
 #change cursor color back to lxterminal default
 printf '\e]12;#AAAAAA\a'
 
-sleep infinity
+#sleep infinity
