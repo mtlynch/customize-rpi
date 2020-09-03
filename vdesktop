@@ -1,10 +1,6 @@
 #!/bin/bash
 DIRECTORY="$(readlink -f $(dirname $0))"
 
-# ensure files have correct permissions
-chgrp shadow "${DIRECTORY}/shadow"
-chown root "${DIRECTORY}/shadow"
-
 CURRENT_VER="$(wget -qO- https://raw.githubusercontent.com/Botspot/vdesktop/master/version)"
 LOCAL_VER="$(head -n 1 "${DIRECTORY}/version")"
 if [ ! -z $CURRENT_VER ] && [ $CURRENT_VER -gt $LOCAL_VER ];then
@@ -18,8 +14,6 @@ if [ ! -z $CURRENT_VER ] && [ $CURRENT_VER -gt $LOCAL_VER ];then
     rm -rf "${DIRECTORY}.new"
     sudo -u $USER git clone https://github.com/Botspot/vdesktop "${DIRECTORY}.new"
     chmod +x "${DIRECTORY}.new/vdesktop"
-    chgrp shadow "${DIRECTORY}.new/shadow"
-    chown root "${DIRECTORY}.new/shadow"
     echo ""
     NEW_VER="$(head -n 1 "${DIRECTORY}.new/version")"
     if [ $NEW_VER -gt $LOCAL_VER ];then
@@ -80,7 +74,6 @@ function cleanup {
   
   # unmount modifications to the guest
   umount "${mntpnt}/etc/profile" &>/dev/null
-  umount "${mntpnt}/etc/shadow" &>/dev/null
   umount "${mntpnt}/var/lib/dbus/machine-id" &>/dev/null
   umount "${mntpnt}/etc/machine-id" &>/dev/null
   
@@ -282,9 +275,6 @@ if [ "$2" = "gui" ]; then
 fi
 
 if [ "$2" = "gui" ] || [ "$2" = "cli-login" ]; then
-  # mounting shadow password file to guest ensures the password is raspberry.
-  mount --bind "${DIRECTORY}/shadow" "${mntpnt}/etc/shadow"
-  
   echo "Booting in auto-login mode."
   #change cursor color while in guest so user does not forget
   printf '\e]12;#0000AA\a'
@@ -316,5 +306,3 @@ echo "The machine has exited, but you can still access its filesystem. Press Ctr
 
 #change cursor color back to lxterminal default
 printf '\e]12;#AAAAAA\a'
-
-#sleep infinity
