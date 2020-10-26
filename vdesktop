@@ -1,49 +1,6 @@
 #!/bin/bash
 DIRECTORY="$(readlink -f $(dirname $0))"
 
-CURRENT_VER="$(wget -qO- https://raw.githubusercontent.com/Botspot/vdesktop/master/version)"
-LOCAL_VER="$(head -n 1 "${DIRECTORY}/version")"
-if [ ! -z $CURRENT_VER ] && [ $CURRENT_VER -gt $LOCAL_VER ];then
-  echo "Version ${CURRENT_VER} is available. Would you like to download it? [Y/n]" | fold -s
-  read yesno
-  if [[ "$yesno" == "n" ]]; then
-    echo "OK, Vdesktop will not download the new version."
-  else
-    echo "OK. Downloading Vdesktop."
-    cd "${DIRECTORY}"
-    rm -rf "${DIRECTORY}.new"
-    sudo -u $USER git clone https://github.com/Botspot/vdesktop "${DIRECTORY}.new"
-    chmod +x "${DIRECTORY}.new/vdesktop"
-    echo ""
-    NEW_VER="$(head -n 1 "${DIRECTORY}.new/version")"
-    if [ $NEW_VER -gt $LOCAL_VER ];then
-      echo "New version has been downloaded. Old version is located in ${DIRECTORY}.old"
-      rm -rf "${DIRECTORY}.old"
-      sudo -u $USER mv -f "${DIRECTORY}/" "${DIRECTORY}.old"
-      sudo -u $USER mv -f "${DIRECTORY}.new/" "${DIRECTORY}"
-      if [ $NEW_VER -eq "$(head -n 1 "${DIRECTORY}/version")" ];then
-        echo "Copied to ${DIRECTORY} successfully."
-        exit 0
-      else
-        echo "Was not able to copy the updated version to ${DIRECTORY}. Run these commands to install manually:" | fold -s
-        echo ""
-        echo "rm -r ${DIRECTORY}"
-        echo "git clone https://github.com/Botspot/vdesktop"
-        echo ""
-        exit 1
-      fi
-    else
-      echo "Download was not successful."
-      exit 1
-    fi
-  fi
-  rm -rf "${DIRECTORY}.new"
-fi
-
-if [ -z $CURRENT_VER ];then
-  echo -e "Failed to check for updates!\nIf you"\'"re sure you have an Internet connection, then something isn"\'"t right."
-fi
-
 #echo "Script located in:"
 #echo $DIRECTORY
 if [ -z "$1" ]; then
