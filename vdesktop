@@ -3,7 +3,6 @@ DIRECTORY="$(readlink -f $(dirname $0))"
 
 if [ -z "$1" ]; then
   echo "You did not specify what to boot."
-  lsblk -do PATH,MODEL,SIZE
   exit 1
 # Ensure being run as root
 elif [ $(id -u) -ne 0 ]; then
@@ -32,9 +31,8 @@ function cleanup {
 
 trap cleanup EXIT
 
-mntpnt="/media/pi/vdesktop" # if .img file or block device, this is default mount point
-mkdir -p "${mntpnt}" &>/dev/null
-umount -fl "${mntpnt}" &>/dev/null
+mntpnt=$(mktemp --directory)
+umount --force --lazy "${mntpnt}" &>/dev/null
 
 # if user accidentally shutdown the host while guest was running, systemd masks "-.mount" by default. 
 # This ensures -.mount is not masked, though it usually takes a reboot to see any effect.
@@ -45,8 +43,8 @@ if [[ "$1" == *".img" ]] && [ -f "$1" ]; then
   echo "OK, looks like you specified a disk image."
   LOOP="$(losetup -fP --show $1)"
   echo "$LOOP"
-  mount -o rw "${LOOP}p2" "$mntpnt"
-  mount -o rw "${LOOP}p1" "${mntpnt}/boot"
+  mount --options rw "${LOOP}p2" "$mntpnt"
+  mount --options rw "${LOOP}p1" "${mntpnt}/boot"
 
 # NOT_FOUND
 else
@@ -60,7 +58,12 @@ fi
 if [ $mntpnt == "*/" ]; then # ensure there is no trailing slash
   mntpnt=${mntpnt: :-1}
 fi
-mount -n -o remount,suid,rw "$mntpnt" # remount to allow root access
+
+# Remount to allow root access
+mount \
+  --no-mtab \
+  --options remount,suid,rw \
+  "$mntpnt"
 
 if diff "${mntpnt}/etc/machine-id" "/etc/machine-id" > /dev/null || [ -z $(cat "${mntpnt}/etc/machine-id" | head -n1) ]
 then
