@@ -68,7 +68,6 @@ then
   dbus-uuidgen --ensure="${DIRECTORY}/machine-id"
   mount --bind "${DIRECTORY}/machine-id" "${mntpnt}/var/lib/dbus/machine-id"
   mount --bind "${DIRECTORY}/machine-id" "${mntpnt}/etc/machine-id"
-  # rm -f "${mntpnt}/etc/machine-id"
 fi
 
 echo "Booting in 5 seconds."
@@ -78,24 +77,15 @@ machinectl terminate vdesktop &>/dev/null
 machinectl poweroff vdesktop &>/dev/null
 
 sleep 5
+printf "\n\n"
 
-if [ "$2" = "cli-login" ]; then
-  echo "Booting in auto-login mode."
-  # boot the guest
-  echo ""
-  echo ""
-  /usr/bin/expect -c "set timeout -1
-  spawn ${DIRECTORY}/nspawn $mntpnt
-  expect -re .*login:
-  send -- pi\r
-  expect -re .*Password:
-  send -- raspberry\r
-  interact ''
-  expect eof"
-else
-  #shadow file not mounted
-  # boot the guest
-  echo ""
-  echo ""
-  ${DIRECTORY}/nspawn $mntpnt
-fi
+# Boot the guest
+expect -c "set timeout -1
+spawn ${DIRECTORY}/nspawn $mntpnt
+expect -re .*login:
+send -- pi\r
+expect -re .*Password:
+send -- raspberry\r
+interact ''
+expect eof"
+

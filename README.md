@@ -18,7 +18,7 @@ You need a Raspberry Pi OS Lite image file (.img).
 ## To run
 
 ```bash
-sudo ./vdesktop 2020-08-20-raspios-buster-armhf-lite.img cli-login
+sudo ./vdesktop 2020-08-20-raspios-buster-armhf-lite.img
 ```
 
 ## Acknowledgements
