@@ -15,12 +15,12 @@ function cleanup {
   echo "Preparing to exit..."
   
   # unmount modifications to the guest
-  umount "${mntpnt}/etc/profile" &>/dev/null
-  umount "${mntpnt}/var/lib/dbus/machine-id" &>/dev/null
-  umount "${mntpnt}/etc/machine-id" &>/dev/null
+  umount "${MOUNT_POINT}/etc/profile" &>/dev/null
+  umount "${MOUNT_POINT}/var/lib/dbus/machine-id" &>/dev/null
+  umount "${MOUNT_POINT}/etc/machine-id" &>/dev/null
   
-  umount -fl "${mntpnt}/boot" &>/dev/null
-  umount -fl "$mntpnt" &>/dev/null
+  umount -fl "${MOUNT_POINT}/boot" &>/dev/null
+  umount -fl "$MOUNT_POINT" &>/dev/null
   losetup -d "$LOOP" &>/dev/null
   
   rm "${DIRECTORY}/machine-id" &>/dev/null
@@ -31,8 +31,8 @@ function cleanup {
 
 trap cleanup EXIT
 
-mntpnt=$(mktemp --directory)
-umount --force --lazy "${mntpnt}" &>/dev/null
+MOUNT_POINT=$(mktemp --directory)
+umount --force --lazy "${MOUNT_POINT}" &>/dev/null
 
 # if user accidentally shutdown the host while guest was running, systemd masks "-.mount" by default. 
 # This ensures -.mount is not masked, though it usually takes a reboot to see any effect.
@@ -43,8 +43,8 @@ if [[ "$1" == *".img" ]] && [ -f "$1" ]; then
   echo "OK, looks like you specified a disk image."
   LOOP="$(losetup -fP --show $1)"
   echo "$LOOP"
-  mount --options rw "${LOOP}p2" "$mntpnt"
-  mount --options rw "${LOOP}p1" "${mntpnt}/boot"
+  mount --options rw "${LOOP}p2" "$MOUNT_POINT"
+  mount --options rw "${LOOP}p1" "${MOUNT_POINT}/boot"
 
 # NOT_FOUND
 else
@@ -55,22 +55,22 @@ else
   exit 1
 fi
 
-if [ $mntpnt == "*/" ]; then # ensure there is no trailing slash
-  mntpnt=${mntpnt: :-1}
+if [ $MOUNT_POINT == "*/" ]; then # ensure there is no trailing slash
+  MOUNT_POINT=${MOUNT_POINT: :-1}
 fi
 
 # Remount to allow root access
 mount \
   --no-mtab \
   --options remount,suid,rw \
-  "$mntpnt"
+  "$MOUNT_POINT"
 
-if diff "${mntpnt}/etc/machine-id" "/etc/machine-id" > /dev/null || [ -z $(cat "${mntpnt}/etc/machine-id" | head -n1) ]
+if diff "${MOUNT_POINT}/etc/machine-id" "/etc/machine-id" > /dev/null || [ -z $(cat "${MOUNT_POINT}/etc/machine-id" | head -n1) ]
 then
   echo "Temporarily changing Machine ID"
   dbus-uuidgen --ensure="${DIRECTORY}/machine-id"
-  mount --bind "${DIRECTORY}/machine-id" "${mntpnt}/var/lib/dbus/machine-id"
-  mount --bind "${DIRECTORY}/machine-id" "${mntpnt}/etc/machine-id"
+  mount --bind "${DIRECTORY}/machine-id" "${MOUNT_POINT}/var/lib/dbus/machine-id"
+  mount --bind "${DIRECTORY}/machine-id" "${MOUNT_POINT}/etc/machine-id"
 fi
 
 echo "Booting in 5 seconds."
@@ -84,7 +84,7 @@ printf "\n\n"
 
 # Boot the guest
 expect -c "set timeout -1
-spawn ${DIRECTORY}/nspawn $mntpnt
+spawn ${DIRECTORY}/nspawn $MOUNT_POINT
 expect -re .*login:
 send -- pi\r
 expect -re .*Password:
