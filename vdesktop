@@ -4,27 +4,16 @@ DIRECTORY="$(readlink -f $(dirname $0))"
 if [ -z "$1" ]; then
   echo "You did not specify what to boot."
   lsblk -do PATH,MODEL,SIZE
-  if [ $(id -u) -ne 0 ]; then
-    echo "And you did not run this script as root user."
-  fi
-  echo "
-Vdesktop can boot from an image file:   sudo vdesktop /home/pi/2019-09-26-raspbian-buster.img
-Or a block device:                      sudo vdesktop /dev/sda
-Or a Raspbian root directory:           sudo vdesktop /home/pi/old-raspbian/
-
-A second word specifies the boot mode: cli, cli-login, and gui. If none specified, cli mode is assumed.
-" | fold -s
-  exit 0
+  exit 1
 # Ensure being run as root
 elif [ $(id -u) -ne 0 ]; then
   echo "You did not run this script as root user."
-  exit 0
+  exit 1
 fi
 
 function cleanup {
   echo ""
   echo "Preparing to exit..."
-  printf '\e]12;#AAAAAA\a' # change cursor color back to lxterminal default
   
   # unmount modifications to the guest
   umount "${mntpnt}/etc/profile" &>/dev/null
@@ -82,7 +71,6 @@ then
   # rm -f "${mntpnt}/etc/machine-id"
 fi
 
-/bin/echo -e "Your cursor color will be \e[44mblue\e[49m until the container is terminated."
 echo "Booting in 5 seconds."
 
 # terminate any previous instances of the machine in case it did not exit cleanly
@@ -93,8 +81,6 @@ sleep 5
 
 if [ "$2" = "cli-login" ]; then
   echo "Booting in auto-login mode."
-  #change cursor color while in guest so user does not forget
-  printf '\e]12;#0000AA\a'
   # boot the guest
   echo ""
   echo ""
@@ -108,16 +94,8 @@ if [ "$2" = "cli-login" ]; then
   expect eof"
 else
   #shadow file not mounted
-  #change cursor color while in guest so user does not forget
-  printf '\e]12;#0000AA\a' 
   # boot the guest
   echo ""
   echo ""
   ${DIRECTORY}/nspawn $mntpnt
 fi
-
-echo ""
-echo "The machine has exited, but you can still access its filesystem. Press Ctrl+C to unmount ${mntpnt}"
-
-#change cursor color back to lxterminal default
-printf '\e]12;#AAAAAA\a'

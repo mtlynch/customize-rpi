@@ -6,6 +6,13 @@ Customize a Raspberry Pi image for redistribution.
 
 ## Pre-requisites
 
+```bash
+sudo apt-get install \
+  --yes \
+  expect \
+  systemd-container
+```
+
 You need a Raspberry Pi OS Lite image file (.img).
 
 ## To run
