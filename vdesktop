@@ -31,9 +31,6 @@ function cleanup {
   umount "${mntpnt}/var/lib/dbus/machine-id" &>/dev/null
   umount "${mntpnt}/etc/machine-id" &>/dev/null
   
-  # Sometimes Xephyr does not close automatically after container is terminated.
-  killall Xephyr &>/dev/null
-  
   umount -fl "${mntpnt}/boot" &>/dev/null
   umount -fl "$mntpnt" &>/dev/null
   losetup -d "$LOOP" &>/dev/null
@@ -120,7 +117,6 @@ else
 fi
 
 echo ""
-killall Xephyr &>/dev/null
 echo "The machine has exited, but you can still access its filesystem. Press Ctrl+C to unmount ${mntpnt}"
 
 #change cursor color back to lxterminal default
