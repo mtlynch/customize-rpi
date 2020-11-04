@@ -4,102 +4,15 @@
 
 Customize a Raspberry Pi image for redistribution.
 
-## Run a second instance of Raspbian inside Raspbian.
+## Pre-requisites
 
-This script is excellent in these situations:
- - Customizing a new Raspbian image - installing packages, configuring raspi-config, changing wallpaper, etc.
- - Migrating to a clean install of Raspbian and want to compare the appearance of both OS'es at once.
- - Running two versions of software at the same time, one in the host, other in the guest.
- - Running something you might want to undo (such as compiling) and don't want your main OS modified.
- - "Switch" OSes without ever shutting down or swapping SD cards.
- - Running Raspbian Stretch on a Pi 4.
+You need a Raspberry Pi OS Lite image file (.img).
 
 ## To run
 
 ```bash
-./vdesktop
+sudo ./vdesktop 2020-08-20-raspios-buster-armhf-lite.img cli-login
 ```
-
-## Usage
-
-Boot from an image file:    `sudo ./vdesktop /home/pi/2019-09-26-raspbian-buster.img`
-Or a block device:          `sudo ./vdesktop /dev/sda`
-Or the guest's directory:   `sudo ./vdesktop /home/pi/raspbian-stretch/`
-
-A second word specifies the boot mode: `cli`, `cli-login`, and `gui`. If none specified, cli mode is assumed.
-
-Once the container has booted, you have to log in with the guest's credentials. Then the guest's GUI will display in the Xephyr window.
-
-## How does it work?
-
-Vdesktop uses a systemd-nspawn container to 'boot' its devices with. This is similar to a chroot.
-
-[Systemd-nspawn](https://www.man7.org/linux/man-pages/man5/systemd.nspawn.5.html) is much faster than other methods because it doesn't use any emulation. Why would you need emulation anyway, when you want a Pi to run its own OS?
-
-Try out systemd-nspawn yourself:
-
-    sudo systemd-nsapwn -bD /media/pi/USB-DRIVE
-
-(Where /media/pi/USB-DRIVE is the path to an externally connected usb device with Raspberry Pi OS flashed to it.)
-With that command, you'll see the SD card boot up. After manually logging in yourself, you can change settings, run updates, etc, *as long as it can be done in the command-line*.
-
-#### What about an image file?
-
-This is harder to do, since it involves mounting the img first, but here you go:
-
-    sudo -i
-    LOOP="$(losetup -fP --show /path/to/your-raspbian.img)"
-    mount -o rw "${LOOP}p2" /media/pi/vdesktop
-    mount -o rw "${LOOP}p1" /media/pi/vdesktop/boot
-    systemd-nspawn -bD /media/pi/vdesktop
-    umount -fl /media/pi/vdesktop/boot
-    umount -fl /media/pi/vdesktop
-    losetup -d "$LOOP"
-
-#### What if you want graphics?
-
-This is even harder. Launch Xephyr from a host's terminal, then connect to it from within the guest.
-
-From a terminal running on the host system:
-
-    Xehpyr :1
-
-A black window will appear. Assuming you've already ran the necessary `systemd-nspawn` command and logged in as user pi, to make the container/guest system connect to the Xephyr window, run this in the guest's console:
-
-    export DISPLAY=:1
-    /usr/bin/startlxde-pi
-
-If the graphics look bad, you will have to restart certain services. From within the guest's console:
-
-    eval "pcmanfm --desktop --profile LXDE-pi; sleep 20; pcmanfm --desktop --profile LXDE-pi" &
-    lxpanelctl restart
-    sleep 10
-    lxpanelctl restart
-
-#### What if you want everything to work automatically, without requiring any user interaction?
-
-This is *really hard*, and too long to post here. After all, it takes the entire vdesktop script to do this.
-Here's what it does:
-
- - A custom password file is mounted to the container to make sure the user pi's password is always `raspberry`.
- - `expect` logs in automatically to the console. It types in `pi` and `raspberry` so you don't have to.
- - After logging in, `/etc/profile` is run. Vdesktop mounts a custom version of that too, to autostart an X session from the inside.
- - Meanwhile, a loop is running 100 times per second in the host, waiting until the container runs `lxsession`.
- - `Xephyr` opens when that loop triggers, (this is the VNC-style window), to allow the container's `lxsession` to connect to it.
- - Once Xephyr opens and the desktop loads, `clipboardsync` runs, to let you copy & paste text back and forth.
- - When you exit the container, and all of the above has to be safely dismantled and shutdown. Complex? You bet.
- - On top of all that, `vdesktop` ensures dependencies are installed, detects any filesystem errors in the .img and asks permission to repair them, and performs a host of little bug fixes to make it Just Work™
-
-## Directory Tree
-
- - vdesktop/ - The main vdesktop folder. Located at /home/pi by default.
-   - vdesktop - The main script
-   - clipboardsync - Keeps the guest's and host's clipboards in sync, like VNC.
-   - nspawn - The systemd-nspawn command. This was broken out of `vdesktop` to allow for lots of bind-mounts. (for sound sync)
-   - profile - This is temporarily mounted to the selected device to start the desktop session. (If enabled via Settings)
-   - shadow - This is mounted to /etc/shadow of the selected device to ensure the user pi's password is raspberry.
-   - version - Lets Vdesktop keep track of what version it is to see when an update is available.
-   - README.md - You're reading this right now.
 
 ## Acknowledgements
 
