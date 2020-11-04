@@ -6,7 +6,6 @@ Customize a Raspberry Pi image for redistribution.
 
 ## Run a second instance of Raspbian inside Raspbian.
 
-![animated screen recording](https://i.ibb.co/Y8gHjz8/vdesktop.gif)
 This script is excellent in these situations:
  - Customizing a new Raspbian image - installing packages, configuring raspi-config, changing wallpaper, etc.
  - Migrating to a clean install of Raspbian and want to compare the appearance of both OS'es at once.
@@ -14,10 +13,6 @@ This script is excellent in these situations:
  - Running something you might want to undo (such as compiling) and don't want your main OS modified.
  - "Switch" OSes without ever shutting down or swapping SD cards.
  - Running Raspbian Stretch on a Pi 4.
-
-## To download & make excecutable:
-
-`git clone https://github.com/Botspot/vdesktop`
 
 ## To run
 
@@ -110,3 +105,4 @@ Here's what it does:
 
 This is a fork of the [vdesktop](https://github.com/Botspot/vdesktop) project by [@Botspot](https://github.com/Botspot).
 
+This fork focuses on running Raspberry Pi in unattended scripts, whereas vdesktop focuses on providing support for running Raspberry Pi OS images interactively.
