@@ -1,8 +1,6 @@
 #!/bin/bash
 DIRECTORY="$(readlink -f $(dirname $0))"
 
-#echo "Script located in:"
-#echo $DIRECTORY
 if [ -z "$1" ]; then
   echo "You did not specify what to boot."
   lsblk -do PATH,MODEL,SIZE
@@ -22,7 +20,6 @@ elif [ $(id -u) -ne 0 ]; then
   echo "You did not run this script as root user."
   exit 0
 fi
-#apt -y install xserver-xephyr systemd-container
 
 function cleanup {
   echo ""
@@ -49,59 +46,6 @@ function cleanup {
 
 trap cleanup EXIT
 
-PKG_NAMES="" # list of pretty names to show user
-PKG_LIST="" # list of package names to show apt
-
-# ensure systemd-nspawn is installed
-REQ_PKG=systemd-container
-REQ_NAME=Systemd-nspawn
-PKG_OK=$(dpkg-query -W --showformat='${Status}\n' "$REQ_PKG"|grep "install ok installed")
-if [ "" == "$PKG_OK" ]; then
-  PKG_NAMES="${PKG_NAMES}, ${REQ_NAME}" # add user-friendly package name to list
-  PKG_LIST="${PKG_LIST} ${REQ_PKG}" # add apt-friendly package name to list
-fi
-
-# ensure xephyr is installed
-REQ_PKG=xserver-xephyr
-REQ_NAME=Xephyr
-PKG_OK=$(dpkg-query -W --showformat='${Status}\n' "$REQ_PKG"|grep "install ok installed")
-if [ "" == "$PKG_OK" ]; then
-  PKG_NAMES="${PKG_NAMES}, ${REQ_NAME}" # add user-friendly package name to list
-  PKG_LIST="${PKG_LIST} ${REQ_PKG}" # add apt-friendly package name to list
-fi
-
-# ensure expect is installed
-REQ_PKG=expect
-REQ_NAME=Expect
-PKG_OK=$(dpkg-query -W --showformat='${Status}\n' "$REQ_PKG"|grep "install ok installed")
-if [ "" == "$PKG_OK" ]; then
-  PKG_NAMES="${PKG_NAMES}, ${REQ_NAME}" # add user-friendly package name to list
-  PKG_LIST="${PKG_LIST} ${REQ_PKG}" # add apt-friendly package name to list
-fi
-
-# delete first comma. From ", Systemd-nspawn, Xephyr and Expect" to "Systemd-nspawn, Xephyr and Expect"
-PKG_NAMES="$(sed 's/, //' <<< $PKG_NAMES)"
-# replace last comma with and. From ", Systemd-nspawn, Xephyr, Expect" to ", Systemd-nspawn, Xephyr and Expect"
-PKG_NAMES="$(sed 's/\(.*\), /\1 and /' <<< $PKG_NAMES)"
-# delete first space from apt list. From " systemd-container ..." to "systemd-container ..."
-PKG_LIST="$(sed 's/ //' <<< $PKG_LIST)"
-
-if [[ ! -z "$PKG_LIST" ]]; then
-  if [ "$(wc -w <<< "$PKG_NAMES")" -gt 1 ]; then # if only one package, change "need" to "needs".
-    echo "${PKG_NAMES} need to be installed for vdesktop to work. Proceed? [Y/n]" | fold -s
-  else
-    echo "${PKG_NAMES} needs to be installed for vdesktop to work. Proceed? [Y/n]" | fold -s
-  fi
-  read yesno
-  if [[ "$yesno" == "n" ]]; then
-    exit 0
-  else
-    # PKG_LIST must not be in quotes so apt sees them as seperate packages
-    apt --force-yes --yes install $PKG_LIST || exit 1
-  fi
-fi
-
-
 mntpnt="/media/pi/vdesktop" # if .img file or block device, this is default mount point
 mkdir -p "${mntpnt}" &>/dev/null
 umount -fl "${mntpnt}" &>/dev/null
@@ -120,64 +64,12 @@ if [[ "$1" == *".img" ]] && [ -f "$1" ]; then
   mount -o rw "${LOOP}p2" "$mntpnt"
   mount -o rw "${LOOP}p1" "${mntpnt}/boot"
 
-# BLOCK DEVICE
-elif [ -b "$1" ]; then
-  echo "OK, looks like you specified a /dev location or block device" | fold -s
-  if [[ "$1" == *[1-9] ]]; then
-    umount -l "$1" &>/dev/null #ensure it is unmounted
-  else
-
-    # check if partition 2 exists
-    if [ -b "${1}2" ]; then 
-      echo "Partiton 2 exists. Booting..."
-      partnum=2
-
-      # try partition 1
-    elif [ -b "${1}1" ]; then 
-      echo "Partition 2 does not exist. Vdesktop will attempt to boot partition 1." | fold -s
-      partnum=1
-    else
-      # neither 1 nor 2 exist
-      echo "Could not detect any partitions!"
-      exit 1
-    fi
-  fi
-    rootdev=$(echo "$(findmnt / -fnr)" | awk '{print $2}') # Which block device is mounted to  filesystem root
-
-    # if guest uuid is equal to filesystem roots uuid
-    if [[ "$(echo "$(udevadm info -q all -n $1${partnum} | grep 'by-uuid')" | awk '{print $2}'| head -n 1)" == "$(echo "$(udevadm info -q all -n $rootdev | grep 'by-uuid')" | awk '{print $2}'| head -n 1)" ]]; then
-      echo "The device you are trying to boot from and your microSD have the same UUID."
-      echo "Vdesktop can fix the problem by changing the UUID. Proceed? [Y/n]"
-      read answer 
-      if [ "$answer" == "n" ]; then
-        echo "UUID not changed. Exiting."
-        exit 0
-      else
-        echo "Alright, changing the UUID"
-        e2fsck -pf "$1${partnum}"
-        tune2fs "$1${partnum}" -U random
-        exit 0
-      fi
-    fi
-  # finally mount the block device
-  umount "$1${partnum}" &>/dev/null
-  mount "$1${partnum}" "$mntpnt" -o suid
-  if [ $partnum -eq 2 ]; then #mount partition 1 at boot in guest
-    umount "${1}1" &>/dev/null
-    mount "${1}1" "${mntpnt}/boot" -o suid
-    echo "mounting boot as well"
-  fi
 
 # PREVENT BOOTING ROOT
 elif [ "$1" == "/" ]; then
   echo "You cannot boot from Filesystem Root."
   exit 0
 
-# DIRECTORY
-elif [ -d "$1" ]; then
-  echo "OK, looks like you specified a directory"
-  # mount the specified directory to /media/pi/vdesktop
-  mount --bind "$1" "$mntpnt"
 # NOT_FOUND
 else
   echo "No such file or directory. Check spelling and try again."
