@@ -54,8 +54,6 @@ umount -fl "${mntpnt}" &>/dev/null
 # This ensures -.mount is not masked, though it usually takes a reboot to see any effect.
 systemctl unmask  -- -.mount 
 
-echo -e "Message from \e[32mBotspot\e[39m: $(wget -qO- https://raw.githubusercontent.com/Botspot/vdesktop-message/master/message-text)" | fold -s
-
 # IMG FILE
 if [[ "$1" == *".img" ]] && [ -f "$1" ]; then
   echo "OK, looks like you specified a disk image."
@@ -63,12 +61,6 @@ if [[ "$1" == *".img" ]] && [ -f "$1" ]; then
   echo "$LOOP"
   mount -o rw "${LOOP}p2" "$mntpnt"
   mount -o rw "${LOOP}p1" "${mntpnt}/boot"
-
-
-# PREVENT BOOTING ROOT
-elif [ "$1" == "/" ]; then
-  echo "You cannot boot from Filesystem Root."
-  exit 0
 
 # NOT_FOUND
 else
