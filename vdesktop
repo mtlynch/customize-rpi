@@ -209,29 +209,8 @@ machinectl terminate vdesktop &>/dev/null
 machinectl poweroff vdesktop &>/dev/null
 
 sleep 5
-# mount .profile in guest to start lxsession before login.
-if [ "$2" = "gui" ]; then
-  #this starts the desktop session inside the guest
-  mount --bind "${DIRECTORY}/profile" "${mntpnt}/etc/profile"
-fi
 
-if [ "$2" = "gui" ]; then
-  # start Xephyr when an additional instance of lxsession is detected.
-  INITIAL_X_INSTANCES="$(pgrep lxsession | wc -l)"
-  
-  #get screen dimensions to calculate xephyr size
-  screen_width="$(xdpyinfo | grep 'dimensions:' | tr 'x' '\n' | tr ' ' '\n' | sed -n 7p)"
-  screen_height="$(xdpyinfo | grep 'dimensions:' | tr 'x' '\n' | tr ' ' '\n' | sed -n 8p)"
-  
-  eval '
-    while [ "$INITIAL_X_INSTANCES" -eq "$(pgrep lxsession | wc -l)" ]; do
-      sleep 0.01
-    done
-    "${DIRECTORY}/clipboardsync" &
-    Xephyr -no-host-grab -title Vdesktop -ac -screen ${screen_width}x$((screen_height-73)) -br -glamor -resizeable :1 2>/dev/null' &
-fi
-
-if [ "$2" = "gui" ] || [ "$2" = "cli-login" ]; then
+if [ "$2" = "cli-login" ]; then
   echo "Booting in auto-login mode."
   #change cursor color while in guest so user does not forget
   printf '\e]12;#0000AA\a'
@@ -257,7 +236,6 @@ else
 fi
 
 echo ""
-killall clipboardsync &>/dev/null
 killall Xephyr &>/dev/null
 echo "The machine has exited, but you can still access its filesystem. Press Ctrl+C to unmount ${mntpnt}"
 
