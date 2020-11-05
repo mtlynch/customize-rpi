@@ -1,4 +1,7 @@
 #!/bin/bash
+
+set -x
+
 DIRECTORY="$(readlink -f $(dirname $0))"
 
 if [ -z "$1" ]; then
@@ -15,48 +18,37 @@ function cleanup {
   echo "Preparing to exit..."
   
   # unmount modifications to the guest
-  umount "${MOUNT_POINT}/etc/profile" &>/dev/null
-  umount "${MOUNT_POINT}/var/lib/dbus/machine-id" &>/dev/null
-  umount "${MOUNT_POINT}/etc/machine-id" &>/dev/null
+  umount "${MOUNT_POINT}/var/lib/dbus/machine-id" &> /dev/null
+  umount "${MOUNT_POINT}/etc/machine-id" &> /dev/null
   
-  umount -fl "${MOUNT_POINT}/boot" &>/dev/null
-  umount -fl "$MOUNT_POINT" &>/dev/null
-  losetup -d "$LOOP" &>/dev/null
+  umount --force --lazy "${MOUNT_POINT}/boot" &> /dev/null
+  umount --force --lazy "$MOUNT_POINT" &> /dev/null
+  losetup --detach "$LOOP" &> /dev/null
   
-  rm "${DIRECTORY}/machine-id" &>/dev/null
+  rm "${DIRECTORY}/machine-id" &> /dev/null
   echo "Unmounted and exiting..."
-  machinectl poweroff vdesktop &>/dev/null
+  machinectl poweroff vdesktop &> /dev/null
   killall vdesktop
 }
 
 trap cleanup EXIT
 
 MOUNT_POINT=$(mktemp --directory)
-umount --force --lazy "${MOUNT_POINT}" &>/dev/null
+umount --force --lazy "${MOUNT_POINT}" &> /dev/null
 
 # if user accidentally shutdown the host while guest was running, systemd masks "-.mount" by default. 
 # This ensures -.mount is not masked, though it usually takes a reboot to see any effect.
 systemctl unmask  -- -.mount 
 
-# IMG FILE
 if [[ "$1" == *".img" ]] && [ -f "$1" ]; then
   echo "OK, looks like you specified a disk image."
-  LOOP="$(losetup -fP --show $1)"
+  LOOP="$(losetup --find --partscan --show $1)"
   echo "$LOOP"
   mount --options rw "${LOOP}p2" "$MOUNT_POINT"
   mount --options rw "${LOOP}p1" "${MOUNT_POINT}/boot"
-
-# NOT_FOUND
 else
-  echo "No such file or directory. Check spelling and try again."
-  if [[ "$1" == "/dev/"* ]]; then
-    lsblk -do PATH,MODEL,SIZE
-  fi
+  echo "No such file or directory."
   exit 1
-fi
-
-if [ $MOUNT_POINT == "*/" ]; then # ensure there is no trailing slash
-  MOUNT_POINT=${MOUNT_POINT: :-1}
 fi
 
 # Remount to allow root access
@@ -65,10 +57,15 @@ mount \
   --options remount,suid,rw \
   "$MOUNT_POINT"
 
+# Debug
+diff "${MOUNT_POINT}/etc/machine-id" "/etc/machine-id"
+cat "${MOUNT_POINT}/etc/machine-id" | head -n1
+
 if diff "${MOUNT_POINT}/etc/machine-id" "/etc/machine-id" > /dev/null || [ -z $(cat "${MOUNT_POINT}/etc/machine-id" | head -n1) ]
 then
   echo "Temporarily changing Machine ID"
   dbus-uuidgen --ensure="${DIRECTORY}/machine-id"
+  mkdir -p "${MOUNT_POINT}/var/lib/dbus"
   mount --bind "${DIRECTORY}/machine-id" "${MOUNT_POINT}/var/lib/dbus/machine-id"
   mount --bind "${DIRECTORY}/machine-id" "${MOUNT_POINT}/etc/machine-id"
 fi
@@ -76,8 +73,8 @@ fi
 echo "Booting in 5 seconds."
 
 # terminate any previous instances of the machine in case it did not exit cleanly
-machinectl terminate vdesktop &>/dev/null
-machinectl poweroff vdesktop &>/dev/null
+machinectl terminate vdesktop &> /dev/null
+machinectl poweroff vdesktop &> /dev/null
 
 sleep 5
 printf "\n\n"
